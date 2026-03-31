@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Logistics Intelligence</title>
+    <meta name="description" content="AI-powered shipment delay prediction and route optimization using multi-model ML">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Leaflet.js for interactive maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <!-- Animated background -->
+    <div class="bg-grid"></div>
+    <div class="bg-glow glow-1"></div>
+    <div class="bg-glow glow-2"></div>
+    <div class="bg-glow glow-3"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-icon">🚚</span>
+                <div>
+                    <h1 class="logo-text">Smart Logistics Intelligence</h1>
+                    <p class="logo-sub">Multi-Model ML · 3-Factor Route Scoring · SHAP Explainability</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <!-- Tab Navigation -->
+                <nav class="tabs">
+                    <button class="tab active" onclick="switchTab('analysis')" id="tabAnalysis">Analysis</button>
+                </nav>
+                <div class="header-status" id="headerStatus">
+                    <span class="status-dot"></span>
+                    <span id="statusText">Connecting...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══════════════ ANALYSIS TAB ═══════════════ -->
+    <main class="main-container" id="analysisTab">
+        <!-- Input Panel -->
+        <section class="panel input-panel glass-card">
+            <h2 class="panel-title">
+                Shipment Configuration
+            </h2>
+
+            <div class="form-group">
+                <label class="form-label" for="sourceInput">Origin Location</label>
+                <select id="sourceInput" class="form-select"></select>
+            </div>
+
+            <div id="destinationsContainer">
+                <div class="form-group dest-group" id="destGroup0">
+                    <label class="form-label" for="destInput0">Destination 1</label>
+                    <select id="destInput0" class="form-select dest-select"></select>
+                </div>
+            </div>
+
+            <button type="button" class="add-stop-btn" onclick="addDestinationStop()">+ Add Delivery Stop</button>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="depDate">Date</label>
+                    <input type="date" id="depDate" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="depHour">Hour</label>
+                    <select id="depHour" class="form-select"></select>
+                </div>
+            </div>
+            <div id="hourBadge" class="hour-badge"></div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="vehicleType">Vehicle</label>
+                    <select id="vehicleType" class="form-select">
+                        <option value="van">🚐 Van</option>
+                        <option value="truck">🚛 Truck</option>
+                        <option value="bike">🏍️ Bike</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="cargoType">Cargo</label>
+                    <select id="cargoType" class="form-select">
+                        <option value="standard">📦 Standard</option>
+                        <option value="perishable">🧊 Perishable</option>
+                        <option value="fragile">⚠️ Fragile</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="priority">Priority Level</label>
+                <select id="priority" class="form-select">
+                    <option value="1">1 — Normal</option>
+                    <option value="2" selected>2 — Standard</option>
+                    <option value="3">3 — Urgent</option>
+                </select>
+            </div>
+
+            <div class="quick-examples">
+                <p class="form-label">Quick Examples</p>
+                <div class="example-chips">
+                    <button class="chip chip-green" onclick="loadExample('low')">🟢 Low Risk</button>
+                    <button class="chip chip-yellow" onclick="loadExample('medium')">🟡 Medium</button>
+                    <button class="chip chip-red" onclick="loadExample('high')">🔴 High Risk</button>
+                    <button class="chip chip-darkred" onclick="loadExample('extreme')">🔴 Extreme</button>
+                </div>
+            </div>
+
+            <button id="runBtn" class="run-btn" onclick="runAnalysis()">
+                <span class="btn-icon">▶</span>
+                Run Analysis
+            </button>
+        </section>
+
+        <!-- Results Panel -->
+        <section class="panel results-panel">
+            <!-- Placeholder state -->
+            <div id="placeholder" class="placeholder-state">
+                <div class="placeholder-icon">🔍</div>
+                <h3>Ready to Analyze</h3>
+                <p>Configure your shipment on the left and click <strong>Run Analysis</strong> to get delay predictions and optimized routes.</p>
+                <div class="info-cards">
+                    <div class="info-card glass-card">
+                        <div class="info-icon">🤖</div>
+                        <h4>Multi-Model ML</h4>
+                        <p>Compares Logistic Regression, Random Forest, and XGBoost — auto-selects the best</p>
+                    </div>
+                    <div class="info-card glass-card">
+                        <div class="info-icon">🛤️</div>
+                        <h4>3-Factor Scoring</h4>
+                        <p>Optimizes for time + delay risk + distance — not just shortest path</p>
+                    </div>
+                    <div class="info-card glass-card">
+                        <div class="info-icon">🔬</div>
+                        <h4>SHAP Explainability</h4>
+                        <p>Understand exactly why a delay is predicted with feature importance</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading state -->
+            <div id="loading" class="loading-state" style="display:none;">
+                <div class="spinner"></div>
+                <p>Analyzing shipment...</p>
+            </div>
+
+            <!-- Results content -->
+            <div id="results" style="display:none;">
+                <!-- Delay Prediction -->
+                <div class="result-section">
+                    <h2 class="panel-title">Delay Prediction</h2>
+                    <div class="prediction-hero glass-card">
+                        <div class="gauge-container">
+                            <div class="gauge" id="gauge">
+                                <svg viewBox="0 0 200 120" class="gauge-svg">
+                                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12" stroke-linecap="round"/>
+                                    <path id="gaugeArc" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#1D9E75" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 999"/>
+                                </svg>
+                                <div class="gauge-value" id="gaugeValue">0%</div>
+                                <div class="gauge-label">Delay Probability</div>
+                            </div>
+                        </div>
+                        <div class="prediction-details">
+                            <div id="verdictBadge" class="verdict-badge">—</div>
+                            <div id="riskBadge" class="risk-badge">—</div>
+                            <div id="delayEstimate" class="delay-estimate" style="display:none;"></div>
+                            <div class="context-grid" id="contextGrid"></div>
+                        </div>
+                    </div>
+                    <div class="shap-section glass-card">
+                        <h3>Why This Prediction? (SHAP)</h3>
+                        <div id="shapBars" class="shap-bars"></div>
+                    </div>
+                </div>
+
+                <!-- Interactive Map -->
+                <div class="result-section">
+                    <h2 class="panel-title">Route Map</h2>
+                    <div class="map-container glass-card">
+                        <div id="routeMap"></div>
+                        <div class="map-legend">
+                            <span class="legend-item"><span class="legend-dot" style="background:#10b981"></span> Low risk</span>
+                            <span class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span> Medium</span>
+                            <span class="legend-item"><span class="legend-dot" style="background:#f97316"></span> High</span>
+                            <span class="legend-item"><span class="legend-dot" style="background:#ef4444"></span> Very high</span>
+                            <span class="legend-item"><span class="legend-dot" style="background:#64748b"></span> Other hubs</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Route Optimization -->
+                <div class="result-section">
+                    <h2 class="panel-title">Route Optimization</h2>
+                    <div id="bestRouteCard" class="best-route-card glass-card"></div>
+                    <div id="routeComparison" class="route-comparison glass-card"></div>
+                    <div id="segmentBreakdown" class="segment-breakdown"></div>
+                    <div id="alternatives" class="alternatives-section"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ═══════════════ HISTORY TAB ═══════════════ -->
+    <main class="main-container history-container" id="historyTab" style="display:none;">
+        <section class="panel history-panel" style="grid-column: 1 / -1;">
+            <h2 class="panel-title"><span class="panel-icon">📜</span> Analytics Dashboard</h2>
+
+            <!-- Analytics Cards -->
+            <div class="analytics-cards" id="analyticsCards">
+                <div class="analytics-card glass-card">
+                    <div class="analytics-value" id="totalPredictions">—</div>
+                    <div class="analytics-label">Total Predictions</div>
+                </div>
+                <div class="analytics-card glass-card">
+                    <div class="analytics-value" id="totalRoutes">—</div>
+                    <div class="analytics-label">Routes Optimized</div>
+                </div>
+                <div class="analytics-card glass-card">
+                    <div class="analytics-value" id="avgDelay">—</div>
+                    <div class="analytics-label">Avg Delay Probability</div>
+                </div>
+                <div class="analytics-card glass-card">
+                    <div class="analytics-value" id="delayRate">—</div>
+                    <div class="analytics-label">Delay Rate</div>
+                </div>
+            </div>
+
+            <!-- Risk Distribution -->
+            <div class="analytics-row">
+                <div class="analytics-section glass-card">
+                    <h3>Risk Distribution</h3>
+                    <div id="riskDistChart" class="risk-dist-chart"></div>
+                </div>
+                <div class="analytics-section glass-card">
+                    <h3>Hourly Delay Trend</h3>
+                    <div id="hourlyChart" class="hourly-chart"></div>
+                </div>
+            </div>
+
+            <!-- Top Risky Routes -->
+            <div class="analytics-section glass-card" style="margin-top:16px;">
+                <h3>🔥 Top Risky Routes</h3>
+                <div id="riskyRoutesTable"></div>
+            </div>
+
+            <!-- Recent History Table -->
+            <div class="analytics-section glass-card" style="margin-top:16px;">
+                <h3>📋 Recent Predictions</h3>
+                <div id="historyTable" class="history-table-container"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Smart Logistics Intelligence v4.0 · Powered by XGBoost + OSRM + VRP Geocoding</p>
+    </footer>
+
+    <script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+simulator:
+  n_shipments: 50000
+  random_seed: 42
+  delay_noise_std: 0.10
+  delay_threshold: 0.55
+
+  traffic:
+    peak_hours: [7, 8, 9, 17, 18, 19]
+    probabilities:
+      peak:    { clear: 0.10, moderate: 0.28, heavy: 0.42, severe: 0.20 }
+      offpeak: { clear: 0.48, moderate: 0.32, heavy: 0.14, severe: 0.06 }
+      weekend: { clear: 0.55, moderate: 0.28, heavy: 0.12, severe: 0.05 }
+
+  weather:
+    # month -> season: 3-5 summer, 6-9 monsoon, 10-2 winter
+    summer:  { clear: 0.60, rain: 0.05, fog: 0.05, storm: 0.30, temp_mean: 38.0, temp_std: 3.5 }
+    monsoon: { clear: 0.20, rain: 0.50, fog: 0.10, storm: 0.20, temp_mean: 30.0, temp_std: 2.5 }
+    winter:  { clear: 0.50, rain: 0.10, fog: 0.35, storm: 0.05, temp_mean: 16.0, temp_std: 5.0 }
+
+  shipments:
+    vehicle_types: [bike, van, truck]
+    vehicle_weights: [0.15, 0.35, 0.50]
+    cargo_types: [standard, perishable, fragile]
+    cargo_weights: [0.55, 0.25, 0.20]
+    priority_levels: [1, 2, 3]
+    priority_weights: [0.40, 0.40, 0.20]
+
+model:
+  test_size: 0.15
+  val_size: 0.15
+  n_folds: 5
+
+  logistic_regression:
+    C: 1.0
+    max_iter: 1000
+    solver: lbfgs
+    class_weight: balanced
+
+  random_forest:
+    n_estimators: 300
+    max_depth: 12
+    min_samples_split: 5
+    min_samples_leaf: 2
+    class_weight: balanced
+
+  xgboost:
+    n_estimators: 400
+    max_depth: 5
+    learning_rate: 0.05
+    subsample: 0.80
+    colsample_bytree: 0.80
+    min_child_weight: 3
+    gamma: 0.1
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    scale_pos_weight: 2.3
+    eval_metric: aucpr
+    early_stopping_rounds: 30
+
+routing:
+  max_candidates: 5
+  max_hops: 3
+  # 3-factor scoring: score = w1*time + w2*delay_risk + w3*distance
+  # Delay risk dominates, time matters more than raw distance
+  w1_time: 0.35
+  w2_delay: 0.40
+  w3_distance: 0.25
+  max_edge_distance_km: 450
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+
+paths:
+  hubs:          "data/hubs.csv"
+  network:       "data/network.csv"
+  raw_data:      "data/simulated/shipments_raw.csv"
+  features:      "data/processed/train_features.csv"
+  model:         "models/delay_classifier.pkl"
