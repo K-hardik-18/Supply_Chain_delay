@@ -39,7 +39,10 @@ from src.pipeline.orchestrator import run_orchestrator
 from src.simulator.hubs import HUBS, CITY_NAMES
 from src.db.history import save_prediction, save_route, get_predictions, get_routes, get_analytics
 
-load_dotenv()                          # reads .env for API keys
+from dotenv import find_dotenv
+_project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_env_path = find_dotenv(usecwd=True) or os.path.join(_project_root, ".env")
+load_dotenv(_env_path)
 WEATHER_API_KEY      = os.getenv("OPENWEATHER_API_KEY")
 MODEL_PATH           = os.getenv("MODEL_PATH", "models/delay_classifier.pkl")
 TOMTOM_API_KEY       = os.getenv("TOMTOM_API_KEY")
@@ -63,6 +66,7 @@ async def lifespan(app: FastAPI):
             print(f"Routing API    : OSRM Public API (enabled)")
         else:
             print(f"Routing API    : disabled (using haversine fallback)")
+        print(f"Weather API    : {'✅ OpenWeatherMap (live)' if WEATHER_API_KEY else '⚠️ No key — simulated fallback'}")
         print(f"History DB     : data/history.db (active)")
     except Exception as e:
         print(f"[WARNING] Startup init failed: {e}")

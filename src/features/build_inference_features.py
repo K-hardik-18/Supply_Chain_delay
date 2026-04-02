@@ -31,6 +31,9 @@ from src.utils.traffic_api import get_traffic_delay, convert_traffic
 from src.utils.osrm_api import get_osrm_route
 
 
+# In-memory cache for feature vectors (same inputs → same features)
+_feature_cache: dict[str, pd.DataFrame] = {}
+
 def build_feature_vector(
     source: str,
     destination: str,
@@ -54,6 +57,11 @@ def build_feature_vector(
     priority_level      : 1 | 2 | 3
     weather_api_key     : optional OpenWeatherMap key; fallback to seasonal default
     """
+
+    # ── Cache check ──────────────────────────────────────────────────────────
+    _cache_key = f"{source}|{destination}|{departure_time}|{vehicle_type}|{cargo_type}|{priority_level}"
+    if _cache_key in _feature_cache:
+        return _feature_cache[_cache_key].copy()
 
     # ── Hub lookup ───────────────────────────────────────────────────────────
     src_hub = get_hub(source)
@@ -179,6 +187,7 @@ def build_feature_vector(
 
     # Return as single-row DataFrame in exact training column order
     df = pd.DataFrame([feat])[FEATURE_COLUMNS]
+    _feature_cache[_cache_key] = df
     return df
 
 

@@ -72,7 +72,9 @@ def try_live_weather(city: str, api_key: str | None) -> tuple[str | None, float 
         return _weather_cache[city]
 
     if not api_key:
-        print("❌ No API key provided")
+        if not hasattr(try_live_weather, '_warned'):
+            print("⚠️ No weather API key — using simulated weather fallback")
+            try_live_weather._warned = True
         return None, None
 
     try:

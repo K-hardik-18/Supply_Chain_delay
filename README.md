@@ -1,146 +1,326 @@
-# 🚚 Smart Logistics Intelligence (SLI)
-
-**AI-powered Multi-Stop Fleet Optimization, Delay Prediction, and Route Explainability Platform.**
-
-Combines multi-model machine learning (XGBoost), graph-based Operations Research (Traveling Salesperson Problem), real-time weather/traffic APIs, geometric road mapping (OSRM), and SHAP explainability — all served through a blazingly fast modern web dashboard.
-
----
-
-## ✨ Key Features
-
-| Feature | Description |
-|---|---|
-| **Multi-Model ML** | Trains Logistic Regression, Random Forest, and dual-XGBoost pipelines — auto-selects the best model predicting BOTH Delay Probability and exact Delay Minutes. |
-| **VRP TSP Engine** | Solves the Traveling Salesperson Problem using exact sequence permutations to perfectly route multi-stop deliveries. |
-| **4-Factor Route Scoring** | `cost = w1×distance + w2×total_expected_time + w3×delay_probability + w4×traffic_delay` — actively evaluates if detouring through longer geography is mathematically faster. |
-| **Intelligent Pipeline** | Native `orchestrator.py` intercepts route requests detecting A->B dispatch vs full Fleet VRP sequences seamlessly. |
-| **SHAP Explainability** | Every delay prediction includes top contributing mathematical factors via Game Theory (TreeSHAP). |
-| **Real-Time APIs** | OpenWeatherMap (live weather) + TomTom (traffic) + OSRM Public API (real geometric road distances and poly-lines). |
-| **Graph Routing** | NetworkX mathematical digraph with exactly **40 strict Hubs/Warehouses** and **1,560 directed edges** for perfect pathfinding. |
-| **Web Dashboard** | Clean glassmorphism frontend mapped with Leaflet.js, featuring dynamically computed **probabilistic delay margins**, interactive collapsible Alternative Route accordions, and pure mathematical scores. |
+<p align="center">
+  <h1 align="center">🚚 Smart Logistics Intelligence (SLI)</h1>
+  <p align="center">
+    <strong>AI-Powered Supply Chain Delay Prediction & Multi-Stop Route Optimization Platform</strong>
+  </p>
+  <p align="center">
+    <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python">
+    <img src="https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white" alt="FastAPI">
+    <img src="https://img.shields.io/badge/XGBoost-2.0+-FF6600?logo=xgboost&logoColor=white" alt="XGBoost">
+    <img src="https://img.shields.io/badge/SHAP-Explainability-blueviolet" alt="SHAP">
+    <img src="https://img.shields.io/badge/OSRM-Routing-green" alt="OSRM">
+    <img src="https://img.shields.io/badge/Leaflet.js-Maps-199900?logo=leaflet&logoColor=white" alt="Leaflet">
+  </p>
+</p>
 
 ---
 
-## 📁 Extreme File Structure & Deep Explanations
+## 🎯 What Is This?
 
-Here is a comprehensive breakdown of every file driving this platform and exactly what it does at the extreme ends of the application.
+SLI is an end-to-end logistics intelligence platform that predicts **shipment delays** and finds the **optimal multi-stop delivery route** across 40 hubs in India. It combines:
+
+- **Dual-Model ML Pipeline** — XGBoost Classifier (delay probability) + XGBoost Regressor (delay minutes)
+- **VRP Solver** — Traveling Salesperson Problem with parallelized scoring and nearest-neighbor heuristic
+- **4-Factor Route Scoring** — Balances distance, time, delay risk, and traffic conditions
+- **Real-Time APIs** — Live weather (OpenWeatherMap), traffic (TomTom), and road geometry (OSRM)
+- **SHAP Explainability** — Game-theoretic explanations for every prediction
+- **Modern Web Dashboard** — Dark glassmorphism UI with interactive maps, gauges, and route visualization
+
+---
+
+## 🖥️ Dashboard Preview
+
+The dashboard features a dark-themed glassmorphism design with:
+- **Delay Probability Gauge** — Animated arc showing risk percentage
+- **Probabilistic Delay Estimate** — Displayed as `T ± t` with propagated uncertainty
+- **SHAP Feature Importance** — Top factors driving the prediction
+- **Interactive Leaflet Map** — Real OSRM road geometries with color-coded risk markers
+- **Route Optimization Panel** — Leg-by-leg breakdown with scores, distances, and alternatives
+
+---
+
+## 📁 Project Structure
 
 ```
 SLI/
-├── frontend/                    # Standalone web frontend (The User Interface)
-│   ├── index.html               # Main Dashboard page. Defines the dark glassmorphism UI layout, native <select> Hub dropdowns, Leaflet map containers, and the result cards.
-│   ├── style.css                # CSS Variables and design system (gradients, animations, glass cards).
-│   └── app.js                   # The crucial Javascript brain. Awaits the API Hub configuration, binds user inputs, synthetic prediction gauges, parses the massive VRP API payloads, dynamically renders the Leaflet road geometries, and lists the Alternative discarded sequences.
+├── frontend/                        # Web Dashboard (Vanilla HTML/CSS/JS)
+│   ├── index.html                   # Main dashboard layout with glassmorphism UI
+│   ├── style.css                    # Design system (CSS variables, gradients, animations)
+│   └── app.js                       # Frontend logic — API calls, map rendering, dynamic results
 │
-├── src/                         # Core Backend Source Code
-│   ├── api/                     # FastAPI Application Layer
-│   │   ├── main.py              # The web server engine. Exposes the endpoints like `/health`, `/hubs`, and the unified `/predict-route` Orchestrator endpoint.
-│   │   └── schemas.py           # Strictly-typed Pydantic JSON validation rules. Guarantees that the data moving between the frontend and the Python backend correctly maps est_delay and costs.
+├── src/                             # Backend Source Code
+│   ├── api/
+│   │   ├── main.py                  # FastAPI server — endpoints, static file serving, lifespan
+│   │   └── schemas.py               # Pydantic request/response models with strict validation
 │   │
-│   ├── models/                  # Machine Learning Training & Inference
-│   │   ├── train_classifier.py  # Builds and trains classification models against historical synthetics data to predict probability of delay.
-│   │   ├── train_regressor.py   # Builds and trains the XGBRegressor pipeline to predict the absolute number of minutes a shipment will be delayed.
-│   │   ├── predict.py           # Loads the winning model double-bundle (`.pkl`) into RAM and runs fast dual-inference natively feeding scoring loops.
-│   │   ├── explain.py           # Executes TreeSHAP calculations to mathematically explain exactly which features caused a delay risk to spike.
-│   │   └── evaluate.py          # Grading mechanism the system uses to pick the absolute best ML model out of the candidates.
+│   ├── models/
+│   │   ├── train_classifier.py      # Trains LR, RF, XGBoost classifiers — auto-selects best
+│   │   ├── train_regressor.py       # Trains XGBRegressor for delay minute prediction
+│   │   ├── predict.py               # Dual-model inference (classifier + regressor)
+│   │   ├── explain.py               # SHAP TreeExplainer with human-readable feature labels
+│   │   └── evaluate.py              # Model comparison and evaluation metrics
 │   │
-│   ├── pipeline/                # Global Logic Controllers
-│   │   └── orchestrator.py      # The Master Endpoint controller natively managing 1-to-1 optimization limits vs massive multi-stop fleet permutations under one API Roof.
+│   ├── pipeline/
+│   │   └── orchestrator.py          # Master controller — routes single-hop vs multi-stop VRP
 │   │
-│   ├── routing/                 # Operations Research & Mathematical Pathfinding
-│   │   ├── graph_builder.py     # Reads `network.csv` and builds the NetworkX mathematical memory structure in RAM used by all subsequent graph algorithms.
-│   │   ├── candidate_routes.py  # Uses Yen's K-Shortest Paths to generate topological detours (e.g., Candidates 1 to 5) between any two hubs in India.
-│   │   ├── scorer.py            # Converts OSRM driving duration, actual Distance, and XGBoost Delay Risk into a single massive normalized 'Composite Penalty Score'. The lowest score wins.
-│   │   ├── optimizer.py         # The middleman orchestrator. Takes Origin and Destination, grabs the 5 NetworkX candidate paths, throws them into the `scorer.py`, and returns only the ultimate mathematical winner.
-│   │   └── vrp.py               # The Crown Jewel. Takes 3+ destinations, runs combinatorial permutations (`itertools`) to evaluate every possible sequence, scores them using the `optimizer.py`, and saves discarded "losers" to an `alternatives` array payload.
+│   ├── routing/
+│   │   ├── graph_builder.py         # Builds NetworkX digraph (40 nodes, 1560 edges)
+│   │   ├── optimizer.py             # Generates K-shortest candidate paths, scores each
+│   │   ├── scorer.py                # 4-factor cost function per route segment
+│   │   └── vrp.py                   # Parallelized VRP solver with nearest-neighbor heuristic
 │   │
-│   ├── features/                # Feature Engineering Pipeline
-│   │   ├── build_training_features.py   # Large-scale, batch processing to convert historical string data into pure mathematics for model training.
-│   │   └── build_inference_features.py  # The live data pipe. When the UI asks for a route, it pings the OSRM, Weather, and Traffic APIs here to construct an exact vector snapshot of current conditions before hitting XGBoost.
+│   ├── features/
+│   │   ├── build_training_features.py   # Batch feature engineering for model training
+│   │   └── build_inference_features.py  # Real-time feature vector construction with caching
 │   │
-│   ├── simulator/               # Database Engine & Generators
-│   │   ├── generator.py         # The massive script that produces 50,000 synthetic shipments mathematically engineered to teach the ML models what a delay looks like.
-│   │   ├── hubs.py              # The Source of Truth. Contains the strict Python dictionary defining the exact 40 nationwide Hubs/Warehouses and their absolute GPS coordinates.
-│   │   ├── network.py           # The mathematical compiler that forces total topological connectivity between the 40 hubs, generating 1,560 exact edges.
-│   │   ├── traffic.py           # Real-world traffic simulator matrix.
-│   │   ├── weather.py           # Historical/simulated weather generator used if the LIVE OpenWeather API is missing.
-│   │   └── shipments.py         # Sub-module to simulate stochastic vehicle types and priority metrics randomly.
+│   ├── simulator/
+│   │   ├── generator.py             # Generates 50,000 synthetic shipments for training
+│   │   ├── hubs.py                  # 40 Indian logistics hubs with GPS coordinates
+│   │   ├── network.py               # Builds fully-connected hub network (1560 edges)
+│   │   ├── traffic.py               # Traffic simulation (peak/off-peak/weekend patterns)
+│   │   ├── weather.py               # Weather fallback + OpenWeatherMap live API with caching
+│   │   └── shipments.py             # Vehicle/cargo type encoders
 │   │
-│   └── utils/                   # External API Clients
-│       ├── osrm_api.py          # The live connection script to the Public Open Source Routing Machine for extracting real-world road geometries and distances.
-│       ├── traffic_api.py       # TomTom traffic delay API connector.
-│       └── weather_api.py       # OpenWeatherMap live connector.
+│   ├── db/
+│   │   └── history.py               # SQLite prediction/route history logging
+│   │
+│   └── utils/
+│       ├── osrm_api.py              # OSRM public API client with LRU cache (no key needed)
+│       └── traffic_api.py           # TomTom traffic delay API client
 │
 ├── configs/
-│   └── config.yaml              # The Master Switchboard. Contains every single hyperparameter, weight function, threshold limit, and training split sizing rule for the whole repository.
+│   └── config.yaml                  # Hyperparameters, weights, thresholds, simulation config
 │
-├── data/                        # Datasets (Pre-Compiled and Safe)
-│   ├── simulated/               # Where the raw 50,000 shipments are saved.
-│   └── processed/               # Matrix-transformed mathematically ready data used by training.
+├── data/
+│   ├── simulated/                   # Raw synthetic shipment CSVs
+│   ├── processed/                   # Training-ready feature matrices
+│   ├── hubs.csv                     # Hub reference data
+│   └── network.csv                  # Edge reference data
 │
-├── .env                         # Your hidden API keys (e.g., OPENWEATHER_API_KEY).
-├── requirements.txt             # Mandatory pip dependencies to run the system.
-├── setup_and_run.py             # The aggressive one-shot automation script. It builds the 1560-edge network, simulates the 50,000 trips, trains XGBoost, selects the winner, and prepares the backend all in 1 command.
-└── README.md                    # This file!
+├── models/
+│   ├── delay_classifier.pkl         # Trained XGBoost classifier bundle
+│   └── delay_regressor.pkl          # Trained XGBoost regressor bundle
+│
+├── reports/
+│   ├── confusion_matrix.png         # Model evaluation visualization
+│   ├── shap_summary.png             # SHAP feature importance plot
+│   ├── evaluation_report.json       # Precision, recall, F1 metrics
+│   └── model_comparison.json        # Multi-model benchmark results
+│
+├── setup_and_run.py                 # One-shot pipeline: simulate → train → evaluate
+├── requirements.txt                 # Python dependencies
+├── .env                             # API keys (not committed — see setup below)
+└── README.md
 ```
 
 ---
 
-## 🚀 Quick Start Guide
+## 🚀 Quick Start
 
-### 1. Install System Dependencies
+### Prerequisites
+
+- Python 3.10+
+- pip
+
+### 1. Clone & Install
 
 ```bash
+git clone https://github.com/K-hardik-18/Supply_Chain_delay.git
+cd Supply_Chain_delay
 pip install -r requirements.txt
 ```
 
-### 2. Configure API Keys (Highly Recommended but Optional)
+### 2. Configure API Keys (Optional)
 
-Create or edit an `.env` file in the root with your keys to unlock real-time intelligence:
+Create a `.env` file in the project root:
 
 ```env
-OPENWEATHER_API_KEY=your_key_here     # Real-time weather overlays (optional)
-TOMTOM_API_KEY=your_key_here          # Real-time traffic injection (optional)
+OPENWEATHER_API_KEY=your_key_here     # Free at https://openweathermap.org/api
+TOMTOM_API_KEY=your_key_here          # Free at https://developer.tomtom.com
 ```
 
-> **Note:** The OSRM routing engine uses a completely free public API. No key is required for Map Geometry drawing. If TomTom/Weather keys are missing, the system gracefully mathematically simulates fallbacks instead.
+> **Note:** Both keys are optional. Without them, the system uses intelligent simulated fallbacks. The OSRM routing API is completely free and requires no key.
 
-### 3. Generate Mathematical Network & Train Intelligence
+### 3. Generate Data & Train Models
 
 ```bash
 python setup_and_run.py
 ```
 
-This single command:
-1. Rebuilds the absolutely connected 40-node `hubs.py` and `network.csv` (1,560 edges).
-2. Generates 50,000 synthetic historical shipments.
-3. Bootstraps the pipeline, trains ML models (LR, RF, XGBoost), and drops the winning `.pkl` into the `/models/` folder.
+This script automatically:
+1. Generates 50,000 synthetic shipment records
+2. Builds training feature matrices
+3. Trains and compares 3 ML models (Logistic Regression, Random Forest, XGBoost)
+4. Saves the best-performing model to `models/`
+5. Outputs evaluation reports and SHAP visualizations to `reports/`
 
-### 4. Ignite the Fast Server
+### 4. Start the Server
 
 ```bash
-uvicorn src.api.main:app --port 8080 --reload
+uvicorn src.api.main:app --port 8080 --reload --reload-dir src --reload-dir frontend
 ```
 
-### 5. Access the Platform
+### 5. Open the Dashboard
 
-- **Dashboard**: [http://localhost:8080](http://localhost:8080)
-- **Automatic Docs Page**: [http://localhost:8080/docs](http://localhost:8080/docs)
-
----
-
-## 🔌 API Reference Workflow (Backend Process)
-
-When the user queries the dashboard, the following chain kicks off programmatically:
-
-1. **`GET /hubs`**: Fired instantly on page load. Binds the 40 known Hubs and Warehouses straight to the frontend HTML `<select>` dropdown menus to prevent any typing errors (`422 Unprocessable Entity`).
-2. **`POST /predict-route`**: Fired when the "Run Analysis" button is clicked. Sent straight to the Orchestrator with 1 Origin and up to 5 Destinations:
-   - The **TSP Engine** generates sequential permutations.
-   - The **NetworkX solver** fetches up to 5 intermediate detour paths per geographical step.
-   - Internal synchronous calls fire to the **OSRM API** for distance lines/base duration, and to the **Weather/Traffic APIs**.
-   - **XGBoost Classifier + Regressor** are engaged, predicting the precise Delay Probability and exact Delay Minutes.
-   - The **Scorer** isolates the ultimate winning Permutation route via the 4-Factor cost equation and records the discarded unoptimized ones as "Alternatives," forcing everything dynamically back to `app.js` for Leaflet visualization!
+Navigate to **[http://localhost:8080](http://localhost:8080)** in your browser.
 
 ---
 
-**Created by Hardik Kumawat, Vardhan Bhati, Harshvardhan Sharma**
+## ⚙️ How It Works
+
+### End-to-End Request Flow
+
+```
+User clicks "Run Analysis"
+        │
+        ▼
+  POST /predict-route
+        │
+        ▼
+  ┌─────────────────┐
+  │   Orchestrator   │ ← Detects single-hop vs multi-stop
+  └────────┬────────┘
+           │
+     ┌─────┴─────┐
+     ▼           ▼
+  Optimizer    VRP Solver
+  (1 dest)    (2+ dests)
+     │           │
+     ▼           ▼
+  ┌──────────────────┐
+  │  Route Scorer    │ ← Per-segment cost calculation
+  │  (4-Factor)      │
+  └────────┬─────────┘
+           │
+  ┌────────┴────────────────────────┐
+  │  For each segment:              │
+  │  1. OSRM API → road distance   │
+  │  2. Weather API → conditions   │
+  │  3. Traffic API → congestion   │
+  │  4. Feature Vector → XGBoost   │
+  │  5. SHAP → explanation         │
+  └────────┬────────────────────────┘
+           │
+           ▼
+  Best route + alternatives
+  returned to dashboard
+```
+
+### 4-Factor Scoring Formula
+
+```
+cost = 0.01 × distance_km
+     + 0.50 × total_expected_time
+     + 0.30 × delay_probability
+     + 0.19 × traffic_delay
+```
+
+The route with the **lowest composite score** wins. Alternative routes are preserved and shown in collapsible accordions.
+
+### Delay Estimation Display
+
+Delays are shown as **`T ± t`** using propagated uncertainty:
+- **T** = predicted delay minutes from XGBoost Regressor
+- **t** = uncertainty margin (10–25% of T, minimum 1 minute)
+- **< 5 min** results display as *"Minimal Delay Expected"* to avoid misleading noise
+- Multi-stop routes aggregate using **quadrature error propagation**: `σ_total = √(σ₁² + σ₂² + ...)`
+
+---
+
+## 🔌 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Serves the web dashboard |
+| `GET` | `/health` | Health check with model/graph status |
+| `GET` | `/hubs` | Returns all 40 hubs with coordinates |
+| `POST` | `/predict-route` | Main analysis endpoint (single or multi-stop) |
+| `GET` | `/history` | Recent prediction history |
+| `GET` | `/analytics` | Aggregate analytics and trends |
+| `GET` | `/docs` | Auto-generated Swagger API docs |
+
+### Example Request
+
+```json
+POST /predict-route
+{
+  "source": "Delhi (Hub)",
+  "destinations": ["Jaipur (Hub)", "Ahmedabad (Hub)"],
+  "departure_time": "2026-04-02T14:00:00",
+  "vehicle_type": "van",
+  "cargo_type": "standard",
+  "priority_level": 2
+}
+```
+
+---
+
+## 🧠 ML Architecture
+
+### Dual-Model Pipeline
+
+| Model | Task | Output |
+|-------|------|--------|
+| **XGBoost Classifier** | Delay risk classification | Probability (0–1) |
+| **XGBoost Regressor** | Delay magnitude estimation | Minutes of delay |
+
+### Feature Set (20 features)
+
+| Category | Features |
+|----------|----------|
+| **Route** | `distance_km`, `route_type_code` |
+| **Hub** | `source_hub_type_code`, `dest_hub_type_code`, `hub_congestion` |
+| **Time** | `departure_hour`, `hour_sin`, `hour_cos`, `is_peak_hour`, `is_weekend` |
+| **Traffic** | `traffic_code`, `traffic_time`, `traffic_delay`, `waiting_time_est`, `demand_pressure` |
+| **Weather** | `weather_code`, `temperature` |
+| **Shipment** | `vehicle_code`, `cargo_code`, `priority_level` |
+| **Interaction** | `traffic_x_peak`, `weather_x_distance`, `congestion_x_waiting`, `temp_x_cargo` |
+
+---
+
+## 🏎️ Performance Optimizations
+
+| Optimization | Impact |
+|-------------|--------|
+| **Parallel leg scoring** | ThreadPoolExecutor (4 workers) scores VRP legs concurrently |
+| **Nearest-neighbor heuristic** | Avoids N! brute-force for > 3 destinations |
+| **OSRM LRU cache** (1024 entries) | Eliminates duplicate road API calls |
+| **Feature vector cache** | Same inputs return cached DataFrames instantly |
+| **Weather response cache** | One API call per city per session |
+| **Reduced candidates** | 3 candidate paths per leg (down from 5) |
+
+---
+
+## 📊 Reports
+
+After running `setup_and_run.py`, evaluation outputs are saved to `reports/`:
+
+- `confusion_matrix.png` — Visual classification performance
+- `shap_summary.png` — Global feature importance via SHAP
+- `evaluation_report.json` — Precision, Recall, F1-Score
+- `model_comparison.json` — Head-to-head model benchmarks
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **ML** | XGBoost, Scikit-Learn, SHAP |
+| **Backend** | FastAPI, Pydantic, Uvicorn |
+| **Routing** | NetworkX, OSRM Public API |
+| **Frontend** | Vanilla HTML/CSS/JS, Leaflet.js |
+| **APIs** | OpenWeatherMap, TomTom Traffic |
+| **Data** | Pandas, NumPy, SQLite |
+
+---
+
+## 👥 Authors
+
+**Hardik Kumawat** · **Vardhan Bhati** · **Harshvardhan Sharma**
+
+---
+
+<p align="center">
+  <sub>Built with ❤️ using Python, XGBoost, and FastAPI</sub>
+</p>

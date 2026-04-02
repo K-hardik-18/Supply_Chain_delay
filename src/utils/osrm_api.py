@@ -36,7 +36,7 @@ def get_osrm_route(origin_lat: float, origin_lon: float, dest_lat: float, dest_l
     }
 
     try:
-        resp = requests.get(url, params=params, headers=HEADERS, timeout=3.0)
+        resp = requests.get(url, params=params, headers=HEADERS, timeout=5.0)
         resp.raise_for_status()
         data = resp.json()
 
@@ -52,9 +52,7 @@ def get_osrm_route(origin_lat: float, origin_lon: float, dest_lat: float, dest_l
             # GeoJSON geometry
             geometry = route["geometry"]
             
-            # Rate limit compliance (OSRM public API requires no more than 1 req/sec ideally, 
-            # though we are making small bursts, a tiny sleep helps avoid 429 Too Many Requests)
-            time.sleep(0.1)
+            # lru_cache prevents duplicate calls; no sleep needed
 
             return distance_km, duration_hr, geometry
 

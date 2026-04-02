@@ -70,7 +70,7 @@ def run_orchestrator(
             cargo_type=cargo_type,
             priority_level=priority_level,
             weather_api_key=weather_api_key,
-            max_candidates_per_leg=5,
+            max_candidates_per_leg=3,
         )
         # Mutate vrp output to attach total_cost specifically for step 8 schema
         if "fleet_plan" in res:
