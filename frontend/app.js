@@ -453,23 +453,41 @@ function renderMap(plan, payload) {
     const bounds = [];
 
     // 1. Draw route segments
+    const getLL = (city) => HUB_LIST.find(h => h.city === city) || {lat: 0, lon: 0};
+
     plan.legs.forEach(leg => {
         leg.segments.forEach(seg => {
-            if (!seg.geometry) return;
             const color = RISK_COLORS[seg.risk_level] || "#3b82f6";
-            const layer = L.geoJSON(seg.geometry, {
-                style: { color, weight: 4, opacity: 0.85, dashArray: seg.risk_level === "very_high" ? "8 6" : null }
-            });
-            seg.geometry.coordinates.forEach(c => bounds.push([c[1], c[0]]));
-            
-            layer.bindPopup(`<b>${seg.from.split(',')[0]} → ${seg.to.split(',')[0]}</b><br>📏 ${seg.distance_km} km <br>⚠️ Delay risk: <b style="color:${color}">${Math.round(seg.delay_probability*100)}%</b>`);
-            mapLayerGroup.addLayer(layer);
+
+            if (seg.geometry) {
+                // Draw the real OSRM road geometry
+                const layer = L.geoJSON(seg.geometry, {
+                    style: { color, weight: 4, opacity: 0.85, dashArray: seg.risk_level === "very_high" ? "8 6" : null }
+                });
+                seg.geometry.coordinates.forEach(c => bounds.push([c[1], c[0]]));
+
+                layer.bindPopup(`<b>${seg.from.split(',')[0]} → ${seg.to.split(',')[0]}</b><br>📏 ${seg.distance_km} km <br>⚠️ Delay risk: <b style="color:${color}">${Math.round(seg.delay_probability*100)}%</b>`);
+                mapLayerGroup.addLayer(layer);
+            } else {
+                // Fallback: draw a straight line between the two cities
+                const fromLL = getLL(seg.from.split(',')[0]);
+                const toLL   = getLL(seg.to.split(',')[0]);
+                if (fromLL.lat && toLL.lat) {
+                    const line = L.polyline(
+                        [[fromLL.lat, fromLL.lon], [toLL.lat, toLL.lon]],
+                        { color, weight: 3, opacity: 0.7, dashArray: "6 4" }
+                    );
+                    line.bindPopup(`<b>${seg.from.split(',')[0]} → ${seg.to.split(',')[0]}</b><br>📏 ${seg.distance_km} km <br>⚠️ Delay risk: <b style="color:${color}">${Math.round(seg.delay_probability*100)}%</b><br><i>(Straight line — road geometry unavailable)</i>`);
+                    mapLayerGroup.addLayer(line);
+                    bounds.push([fromLL.lat, fromLL.lon]);
+                    bounds.push([toLL.lat, toLL.lon]);
+                }
+            }
         });
     });
 
     // 2. Draw node markers (Origin + Dest stops)
     // Build a map of node names to their GPS to draw markers
-    const getLL = (city) => HUB_LIST.find(h => h.city === city) || {lat: 0, lon: 0};
     const sLL = getLL(payload.source);
     const nodesMap = { [payload.source]: {lat: sLL.lat, lon: sLL.lon, type: "Origin"} };
     payload.destinations.forEach((d, i) => { 
