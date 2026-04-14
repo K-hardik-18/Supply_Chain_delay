@@ -1,5 +1,8 @@
 """
 scorer.py  —  Score a candidate route using per-edge ML delay predictions.
+
+Uses a NORMALIZED 4-factor scoring formula where all components contribute
+meaningfully to route selection, preventing any single factor from dominating.
 """
 
 from __future__ import annotations
@@ -18,11 +21,26 @@ def _risk_label(prob: float) -> str:
     if prob < 0.70: return "high"
     return "very_high"
 
-# 4-factor scoring weights
-W1_DIST     = 0.01   # distance weight
-W2_TIME     = 0.50   # total expected time
-W3_DELAY    = 0.30   # delay risk probability
-W4_TRAFF    = 0.19   # traffic delay weight
+
+# ── Normalized 4-factor scoring weights ──────────────────────────────────────
+# All feature values are normalized to approximately [0, 1] range BEFORE
+# weighting, so these weights reflect actual importance.
+#
+# W_TIME  (0.40) — Arrival speed matters most in logistics
+# W_DELAY (0.25) — ML-predicted delay risk directly impacts reliability
+# W_DIST  (0.20) — Fuel/distance cost matters but shouldn't dominate
+# W_TRAFF (0.15) — Real-time traffic disruption factor
+#
+W_DIST  = 0.20
+W_TIME  = 0.40
+W_DELAY = 0.25
+W_TRAFF = 0.15
+
+# Normalization constants (approximate max values for Indian routes)
+MAX_DISTANCE_KM = 3000.0   # Max hub-to-hub distance
+MAX_TIME_HR     = 50.0     # Max expected travel time
+MAX_TRAFFIC_HR  = 10.0     # Max traffic delay hours
+
 
 def score_route(
     route: list[str],
@@ -30,10 +48,10 @@ def score_route(
     vehicle_type: str = "van",
     cargo_type: str   = "standard",
     priority_level: int = 2,
-    w1: float = W1_DIST,
-    w2: float = W2_TIME,
-    w3: float = W3_DELAY,
-    w4: float = W4_TRAFF,
+    w1: float = W_DIST,
+    w2: float = W_TIME,
+    w3: float = W_DELAY,
+    w4: float = W_TRAFF,
     weather_api_key: str | None = None,
     use_osrm: bool = True,
 ) -> dict:
@@ -85,18 +103,26 @@ def score_route(
 
         prob, _delayed, pred_mins = predict_delay(features)
         
-        # Core cost extraction constraint
+        # Extract raw values from feature vector
         traffic_time = float(features["traffic_time"].iloc[0])
         traffic_delay = float(features["traffic_delay"].iloc[0])
         dist_km = float(features["distance_km"].iloc[0])
         
         total_expected_time = traffic_time + (pred_mins / 60.0)
         
+        # ── NORMALIZED scoring ──────────────────────────────────────────────
+        # Normalize all components to approximately [0, 1] so weights
+        # reflect true importance — no single factor can dominate.
+        norm_dist    = dist_km / MAX_DISTANCE_KM             # ~0.03 to ~1.0
+        norm_time    = total_expected_time / MAX_TIME_HR      # ~0.02 to ~1.0
+        norm_delay   = prob                                   # already 0-1
+        norm_traffic = min(traffic_delay / MAX_TRAFFIC_HR, 1) # clamp to 0-1
+        
         cost_per_segment = (
-            w1 * dist_km +
-            w2 * total_expected_time +
-            w3 * prob +
-            w4 * traffic_delay
+            w1 * norm_dist +
+            w2 * norm_time +
+            w3 * norm_delay +
+            w4 * norm_traffic
         )
         total_cost += cost_per_segment
 
@@ -112,7 +138,7 @@ def score_route(
             "traffic_time": round(traffic_time, 2),
             "traffic_delay": round(traffic_delay, 2),
             "predicted_delay_minutes": round(pred_mins, 1),
-            "cost_per_segment": round(cost_per_segment, 3),
+            "cost_per_segment": round(cost_per_segment, 4),
             "road_type": "highway" if use_osrm else edge["road_type"],
             "delay_probability": round(prob, 4),
             "risk_level": risk_level,
@@ -120,14 +146,24 @@ def score_route(
             "geometry": geometry,
         })
 
-    mean_delay_risk = sum(delay_probs) / len(delay_probs) if delay_probs else 0.0
+    # Cumulative route-level delay probability:
+    # P(at least one segment delayed) = 1 - ∏(1 - p_i)
+    # This correctly shows that more segments = higher overall risk.
+    no_delay_prob = 1.0
+    for p in delay_probs:
+        no_delay_prob *= (1.0 - p)
+    route_delay_risk = 1.0 - no_delay_prob
+
+    # Total predicted delay across all segments
+    total_delay_mins = sum(s["predicted_delay_minutes"] for s in segments)
 
     return {
         "route": route,
         "n_hops": len(route) - 1,
         "total_distance_km": round(total_distance, 1),
         "estimated_time_hr": round(total_time, 2),
-        "mean_delay_risk": round(mean_delay_risk, 4),
-        "route_score": round(total_cost, 4),  # Replaces old score
+        "mean_delay_risk": round(route_delay_risk, 4),
+        "total_predicted_delay_minutes": round(total_delay_mins, 1),
+        "route_score": round(total_cost, 4),
         "segments": segments,
     }
