@@ -72,10 +72,13 @@ def run_orchestrator(
             weather_api_key=weather_api_key,
             max_candidates_per_leg=3,
         )
-        # Mutate vrp output to attach total_cost specifically for step 8 schema
-        if "fleet_plan" in res:
-            res["fleet_plan"]["total_cost"] = res["fleet_plan"]["total_route_score"]
-            for leg in res["fleet_plan"]["legs"]:
-                leg["leg_cost"] = leg["leg_score"]
-                
+        # Normalise VRP output: vrp.py returns "best_plan" (not "fleet_plan")
+        # Attach total_cost alias and per-leg leg_cost so downstream consumers
+        # and the FleetOptimizationResponse schema can read them consistently.
+        if "best_plan" in res:
+            plan = res["best_plan"]
+            plan["total_cost"] = plan.get("total_score", 0.0)
+            for leg in plan.get("legs", []):
+                leg["leg_cost"] = leg.get("leg_score", 0.0)
+
         return res

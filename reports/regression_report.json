@@ -1,0 +1,9 @@
+{
+  "model": "xgboost_regressor",
+  "target": "delay_minutes",
+  "train_rows": 40000,
+  "test_rows": 10000,
+  "MAE_minutes": 25.0462,
+  "RMSE_minutes": 38.6521,
+  "R2": 0.6981
+}

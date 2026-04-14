@@ -77,7 +77,7 @@ app = FastAPI(
     title       = "Smart Logistics Intelligence API",
     description = (
         "Multi-model delay prediction (LR / RF / XGBoost) with SHAP explainability, "
-        "3-factor ML-powered route optimization (time + delay risk + distance), "
+        "4-factor ML-powered route optimization (distance + time + delay risk + traffic), "
         "and free OSRM public API routing integration."
     ),
     version     = "3.0.0",

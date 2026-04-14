@@ -58,7 +58,7 @@ def find_best_route(
     if not scored_routes:
         raise ValueError("Could not score any valid routes.")
 
-    # Sort by the 3-factor composite score (lower is better)
+    # Sort by the 4-factor composite score: distance + time + delay risk + traffic (lower is better)
     scored_routes.sort(key=lambda x: x["route_score"])
 
     best = scored_routes[0]

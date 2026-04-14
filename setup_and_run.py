@@ -9,9 +9,10 @@ Steps:
     1. Generate 50,000 synthetic shipments
     2. Build training features
     3. Train & compare 3 ML models (LR, RF, XGBoost) — auto-select best
-    4. Evaluate and print metrics
-    5. Generate hubs.csv and network.csv for the routing engine
-    6. Print instructions to start API and dashboard
+    4. Evaluate classifier on test set  →  reports/evaluation_report.json
+    5. Train XGBoost regressor          →  reports/regression_report.json
+    6. Generate hubs.csv and network.csv for the routing engine
+    7. Print instructions to start API and dashboard
 """
 
 import os
@@ -52,10 +53,15 @@ def main():
     from src.models.train_classifier import train
     train()
 
-    # ── Step 5: Evaluate ──────────────────────────────────────────────────────
-    step(5, "Evaluating best model on test set...")
+    # ── Step 4: Evaluate classifier ───────────────────────────────────────────
+    step(4, "Evaluating best classifier on test set → reports/evaluation_report.json...")
     from src.models.evaluate import evaluate
     evaluate()
+
+    # ── Step 5: Train regressor ────────────────────────────────────────────────
+    step(5, "Training XGBoost delay-minutes regressor → reports/regression_report.json...")
+    from src.models.train_regressor import train as train_regressor
+    train_regressor()
 
     elapsed = time.time() - t0
     print(f"\n{'='*60}")
@@ -64,17 +70,22 @@ def main():
     print("""
 Next steps:
 
-  Start the API:
+  Start the API + HTML dashboard:
     uvicorn src.api.main:app --reload --port 8000
+    → Open http://localhost:8000 in your browser
 
-  Start the dashboard (in a new terminal):
-    streamlit run app/streamlit_app.py
-
-  API docs:
+  API interactive docs:
     http://localhost:8000/docs
 
   Health check:
     http://localhost:8000/health
+
+  Reports generated:
+    reports/evaluation_report.json   (classifier: accuracy, F1, AUC)
+    reports/regression_report.json   (regressor:  MAE, RMSE, R2)
+    reports/model_comparison.json    (LR vs RF vs XGBoost)
+    reports/confusion_matrix.png
+    reports/shap_summary.png
 """)
 
 

@@ -4,13 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Logistics Intelligence</title>
-    <meta name="description" content="AI-powered shipment delay prediction and route optimization using multi-model ML">
+    <meta name="description" content="AI-powered shipment delay prediction and route optimization using multi-model ML with SHAP explainability and 4-factor scoring">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Leaflet.js for interactive maps -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Chart.js for analytics charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -27,13 +29,14 @@
                 <span class="logo-icon">🚚</span>
                 <div>
                     <h1 class="logo-text">Smart Logistics Intelligence</h1>
-                    <p class="logo-sub">Multi-Model ML · 3-Factor Route Scoring · SHAP Explainability</p>
+                    <p class="logo-sub">Multi-Model ML · 4-Factor Route Scoring · SHAP Explainability</p>
                 </div>
             </div>
             <div class="header-right">
                 <!-- Tab Navigation -->
                 <nav class="tabs">
                     <button class="tab active" onclick="switchTab('analysis')" id="tabAnalysis">Analysis</button>
+                    <button class="tab" onclick="switchTab('history')" id="tabHistory">Analytics</button>
                 </nav>
                 <div class="header-status" id="headerStatus">
                     <span class="status-dot"></span>
@@ -136,8 +139,8 @@
                     </div>
                     <div class="info-card glass-card">
                         <div class="info-icon">🛤️</div>
-                        <h4>3-Factor Scoring</h4>
-                        <p>Optimizes for time + delay risk + distance — not just shortest path</p>
+                        <h4>4-Factor Scoring</h4>
+                        <p>Optimizes for time + delay risk + distance + traffic — not just shortest path</p>
                     </div>
                     <div class="info-card glass-card">
                         <div class="info-icon">🔬</div>
@@ -147,10 +150,28 @@
                 </div>
             </div>
 
-            <!-- Loading state -->
+            <!-- Loading state with step-by-step progress -->
             <div id="loading" class="loading-state" style="display:none;">
                 <div class="spinner"></div>
-                <p>Analyzing shipment...</p>
+                <p id="loadingStepText">Initializing analysis...</p>
+                <div class="progress-steps" id="progressSteps">
+                    <div class="progress-step" id="pstep1">
+                        <span class="pstep-icon">⏳</span>
+                        <span class="pstep-label">Building feature vector</span>
+                    </div>
+                    <div class="progress-step" id="pstep2">
+                        <span class="pstep-icon">⏳</span>
+                        <span class="pstep-label">Scoring candidate routes</span>
+                    </div>
+                    <div class="progress-step" id="pstep3">
+                        <span class="pstep-icon">⏳</span>
+                        <span class="pstep-label">Running VRP optimizer</span>
+                    </div>
+                    <div class="progress-step" id="pstep4">
+                        <span class="pstep-icon">⏳</span>
+                        <span class="pstep-label">Rendering results</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Results content -->
@@ -197,6 +218,17 @@
                     </div>
                 </div>
 
+                <!-- Route Comparison Radar (single-hop only) -->
+                <div class="result-section" id="radarSection" style="display:none;">
+                    <h2 class="panel-title">Route Comparison</h2>
+                    <div class="radar-card glass-card">
+                        <p class="radar-subtitle">Candidate routes compared across all 4 scoring dimensions</p>
+                        <div class="radar-wrap">
+                            <canvas id="radarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Route Optimization -->
                 <div class="result-section">
                     <h2 class="panel-title">Route Optimization</h2>
@@ -209,10 +241,10 @@
         </section>
     </main>
 
-    <!-- ═══════════════ HISTORY TAB ═══════════════ -->
+    <!-- ═══════════════ ANALYTICS TAB ═══════════════ -->
     <main class="main-container history-container" id="historyTab" style="display:none;">
-        <section class="panel history-panel" style="grid-column: 1 / -1;">
-            <h2 class="panel-title"><span class="panel-icon">📜</span> Analytics Dashboard</h2>
+        <section class="panel history-panel glass-card" style="grid-column: 1 / -1;">
+            <h2 class="panel-title"><span class="panel-icon">📊</span> Analytics Dashboard</h2>
 
             <!-- Analytics Cards -->
             <div class="analytics-cards" id="analyticsCards">
@@ -234,15 +266,19 @@
                 </div>
             </div>
 
-            <!-- Risk Distribution -->
+            <!-- Charts Row -->
             <div class="analytics-row">
                 <div class="analytics-section glass-card">
                     <h3>Risk Distribution</h3>
-                    <div id="riskDistChart" class="risk-dist-chart"></div>
+                    <div class="chart-wrap-sm">
+                        <canvas id="riskDonutChart"></canvas>
+                    </div>
                 </div>
                 <div class="analytics-section glass-card">
                     <h3>Hourly Delay Trend</h3>
-                    <div id="hourlyChart" class="hourly-chart"></div>
+                    <div class="chart-wrap-tall">
+                        <canvas id="hourlyLineChart"></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -262,7 +298,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-        <p>Smart Logistics Intelligence v4.0 · Powered by XGBoost + OSRM + VRP Geocoding</p>
+        <p>Smart Logistics Intelligence v4.1 · Powered by XGBoost + OSRM + 4-Factor VRP Scoring · SHAP Explainability</p>
     </footer>
 
     <script src="./app.js"></script>
