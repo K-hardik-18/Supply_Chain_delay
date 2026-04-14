@@ -13,6 +13,8 @@ from src.features.build_inference_features import build_feature_vector
 from src.models.predict import predict_delay, get_threshold
 from src.models.explain import explain_prediction
 from src.simulator.hubs import get_hub
+import os
+from src.utils.googlemaps_api import get_gmaps_route
 from src.utils.osrm_api import get_osrm_route
 
 def _risk_label(prob: float) -> str:
@@ -62,6 +64,8 @@ def score_route(
     total_time      = 0.0
     total_cost      = 0.0
     delay_probs     = []
+    
+    google_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
 
     for i in range(len(route) - 1):
         src, dst = route[i], route[i + 1]
@@ -77,10 +81,20 @@ def score_route(
         if use_osrm:
             src_hub = get_hub(src)
             dst_hub = get_hub(dst)
-            dist, dur, geom = get_osrm_route(
-                src_hub["lat"], src_hub["lon"], 
-                dst_hub["lat"], dst_hub["lon"]
-            )
+            dist, dur, geom = None, None, None
+            
+            if google_api_key:
+                dist, dur, geom = get_gmaps_route(
+                    src_hub["lat"], src_hub["lon"], 
+                    dst_hub["lat"], dst_hub["lon"],
+                    google_api_key
+                )
+            else:
+                dist, dur, geom = get_osrm_route(
+                    src_hub["lat"], src_hub["lon"], 
+                    dst_hub["lat"], dst_hub["lon"]
+                )
+                
             if dist is not None:
                 edge_distance = dist
                 edge_time = dur

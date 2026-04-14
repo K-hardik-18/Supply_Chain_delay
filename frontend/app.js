@@ -105,21 +105,49 @@ function populateSelect(selectEl) {
     });
 }
 
+function renderDestinations() {
+    const container = document.getElementById("destinationsContainer");
+    container.innerHTML = `
+        <div class="form-group dest-group" id="destGroup0">
+            <label class="form-label" for="destInput0">Destination 1</label>
+            <select id="destInput0" class="form-select dest-select"></select>
+        </div>`;
+    
+    // Always bind and populate the first destination
+    const sel0 = document.getElementById("destInput0");
+    populateSelect(sel0);
+    sel0.value = locationState.destinations[0];
+    sel0.addEventListener("change", (e) => locationState.destinations[0] = e.target.value);
+
+    // Render remaining destinations
+    for (let i = 1; i < locationState.destinations.length; i++) {
+        container.insertAdjacentHTML("beforeend", `
+            <div class="form-group dest-group" id="destGroup${i}" style="display:flex; align-items:flex-end; gap:8px;">
+                <div style="flex:1;">
+                    <label class="form-label" for="destInput${i}">Destination ${i + 1}</label>
+                    <select id="destInput${i}" class="form-select dest-select"></select>
+                </div>
+                <button type="button" onclick="removeStop(${i})" style="height:42px; width:42px; flex-shrink:0; background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Remove this stop">-</button>
+            </div>
+        `);
+        const sel = document.getElementById(`destInput${i}`);
+        populateSelect(sel);
+        sel.value = locationState.destinations[i];
+        sel.addEventListener("change", (e) => locationState.destinations[i] = e.target.value);
+    }
+}
+
 function addDestinationStop() {
     if (locationState.destinations.length >= 6) { showError("Maximum 6 stops supported."); return; }
-    const i = locationState.destinations.length;
-    locationState.destinations.push(null);
-    const container = document.getElementById("destinationsContainer");
-    container.insertAdjacentHTML("beforeend", `
-        <div class="form-group dest-group" id="destGroup${i}">
-            <label class="form-label" for="destInput${i}">Destination ${i + 1}</label>
-            <select id="destInput${i}" class="form-select dest-select"></select>
-        </div>`);
-    const sel = document.getElementById(`destInput${i}`);
-    populateSelect(sel);
-    if (HUB_LIST.length > i) sel.selectedIndex = i;
-    locationState.destinations[i] = sel.value;
-    sel.addEventListener("change", (e) => locationState.destinations[i] = e.target.value);
+    // Assign default hub for the new stop based on length, or an empty string
+    locationState.destinations.push(HUB_LIST[locationState.destinations.length]?.city || "");
+    renderDestinations();
+}
+
+function removeStop(index) {
+    if (index === 0) return; // Never remove destination 1
+    locationState.destinations.splice(index, 1);
+    renderDestinations();
 }
 
 // ── Tab Management ───────────────────────────────────────────────────────
@@ -137,22 +165,8 @@ function loadExample(key) {
     locationState.source = ex.source;
     document.getElementById("sourceInput").value = ex.source;
 
-    locationState.destinations = [ex.dests[0]];
-    document.getElementById("destinationsContainer").innerHTML = `
-        <div class="form-group dest-group" id="destGroup0">
-            <label class="form-label" for="destInput0">Destination 1</label>
-            <select id="destInput0" class="form-select dest-select"></select>
-        </div>`;
-    const sel0 = document.getElementById("destInput0");
-    populateSelect(sel0);
-    sel0.value = ex.dests[0];
-    sel0.addEventListener("change", (e) => locationState.destinations[0] = e.target.value);
-
-    for (let i = 1; i < ex.dests.length; i++) {
-        addDestinationStop();
-        locationState.destinations[i] = ex.dests[i];
-        document.getElementById(`destInput${i}`).value = ex.dests[i];
-    }
+    locationState.destinations = [...ex.dests];
+    renderDestinations();
 
     document.getElementById("depHour").value = ex.hour;
     document.getElementById("vehicleType").value = ex.vehicle;
@@ -313,7 +327,7 @@ async function runAnalysis() {
                 </div>
                 <div class="context-item">
                     <div class="label">Total Time</div>
-                    <div class="value">~${Math.round(fleetData.best_plan.total_estimated_time_hr)} hr</div>
+                    <div class="value">~${Number(fleetData.best_plan.total_estimated_time_hr).toFixed(2)} hr</div>
                 </div>
                 <div class="context-item">
                     <div class="label">Stops</div>
@@ -370,7 +384,7 @@ function renderFleetRoute(fleetData) {
         <div class="route-path">📍 ${plan.visit_order.map(n => `<span class="route-node">${n.split(",")[0]}</span>`).join('<span class="route-arrow">→</span>')}</div>
         <div class="route-metrics">
             <div class="route-metric"><div class="metric-value">${plan.total_distance_km} km</div><div class="metric-label">Total Distance</div></div>
-            <div class="route-metric"><div class="metric-value">~${plan.total_estimated_time_hr} hr</div><div class="metric-label">Total Est. Time</div></div>
+            <div class="route-metric"><div class="metric-value">~${Number(plan.total_estimated_time_hr).toFixed(2)} hr</div><div class="metric-label">Total Est. Time</div></div>
             <div class="route-metric"><div class="metric-value" style="color:var(--accent-cyan)">${plan.total_score.toFixed(3)}</div><div class="metric-label">Total Score</div></div>
             <div class="route-metric"><div class="metric-value">${plan.visit_order.length - 1}</div><div class="metric-label">Total Deliveries</div></div>
         </div>`;
@@ -387,7 +401,7 @@ function renderFleetRoute(fleetData) {
                     <div class="segment-route"><span class="segment-risk-dot" style="background:${c}"></span>${s.from.split(",")[0]} → ${s.to.split(",")[0]}</div>
                     <div class="segment-meta">
                         <span>${s.distance_km} km</span>
-                        <span>~${s.estimated_time_hr} hr</span>
+                        <span>~${Number(s.estimated_time_hr).toFixed(2)} hr</span>
                         <span style="color:${c};font-weight:600">${Math.round(s.delay_probability * 100)}% risk</span>
                         <span style="font-style:italic">est_delay: ${T} ± ${t} min</span>
                     </div>
@@ -413,7 +427,7 @@ function renderFleetRoute(fleetData) {
                     <div class="segment-route">Alt ${i + 1}: ${alt.route.join(" → ")}</div>
                     <div class="segment-meta">
                         <span>${alt.total_distance_km} km</span>
-                        <span>~${Math.round(alt.estimated_time_hr * 10) / 10} hr</span>
+                        <span>~${Number(alt.estimated_time_hr).toFixed(2)} hr</span>
                         <span style="color:${altC};font-weight:600">${Math.round(alt.mean_delay_risk * 100)}% risk</span>
                         <span>Score: ${alt.route_score}</span>
                     </div>
@@ -428,7 +442,7 @@ function renderFleetRoute(fleetData) {
                     <div class="segment-route" style="color:#cbd5e1">${alt.visit_order.join(" → ")}</div>
                     <div class="segment-meta">
                         <span>${alt.total_distance_km} km</span>
-                        <span>~${Math.round(alt.total_estimated_time_hr)} hr</span>
+                        <span>~${Number(alt.total_estimated_time_hr).toFixed(2)} hr</span>
                         <span style="color:#ef4444;font-weight:600">Suboptimal Score: ${alt.total_score.toFixed(3)}</span>
                     </div>
                 </div>

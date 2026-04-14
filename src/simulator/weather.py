@@ -121,12 +121,18 @@ def try_live_weather(
             try_live_weather._warned = True
         return None, None
 
+    # If we've already been rate-limited this session, skip all API calls
+    if getattr(try_live_weather, '_rate_limited', False):
+        return None, None
+
     try:
         import requests
+        import time
+
+        # Small delay between API calls to avoid rate limiting
+        time.sleep(0.2)
 
         # Build the Visual Crossing API URL
-        # If we have a date, query that specific date for hourly data
-        # Otherwise query current conditions
         if target_date:
             print(f"🌍 Fetching weather for: {city} on {target_date} at {target_hour}:00")
             url = (
@@ -145,6 +151,14 @@ def try_live_weather(
             )
 
         r = requests.get(url, timeout=8)
+
+        # Handle rate limiting (429): stop ALL API calls for this session
+        if r.status_code == 429:
+            print("⚠️ Weather API rate limit reached — switching to simulated fallback for this session")
+            try_live_weather._rate_limited = True
+            _weather_cache[cache_key] = (None, None)
+            return None, None
+
         r.raise_for_status()
         data = r.json()
 
@@ -156,9 +170,8 @@ def try_live_weather(
             days = data.get("days", [])
             if days:
                 hours = days[0].get("hours", [])
-                # Find the matching hour
                 for h in hours:
-                    hour_str = h.get("datetime", "")  # e.g. "14:00:00"
+                    hour_str = h.get("datetime", "")
                     try:
                         h_val = int(hour_str.split(":")[0])
                         if h_val == target_hour:
@@ -173,7 +186,6 @@ def try_live_weather(
                     temp = float(days[0].get("temp", 0))
                     conditions = days[0].get("conditions", "Clear")
         else:
-            # Current conditions mode
             current = data.get("currentConditions")
             if current:
                 temp = float(current.get("temp", 0))
@@ -181,12 +193,13 @@ def try_live_weather(
 
         if temp is None or conditions is None:
             print("❌ Could not extract weather from API response")
+            _weather_cache[cache_key] = (None, None)
             return None, None
 
         weather = _map_conditions(conditions)
         result = (weather, round(temp, 1))
 
-        # Save to cache
+        # Save success to cache
         _weather_cache[cache_key] = result
 
         print(f"✅ WEATHER: {weather}, {temp}°C ({conditions})")
@@ -195,4 +208,6 @@ def try_live_weather(
 
     except Exception as e:
         print(f"❌ Weather API failed: {e}")
+        # Cache the failure so we don't retry the same city
+        _weather_cache[cache_key] = (None, None)
         return None, None

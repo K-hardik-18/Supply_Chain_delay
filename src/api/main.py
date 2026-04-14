@@ -46,9 +46,7 @@ load_dotenv(_env_path)
 WEATHER_API_KEY      = os.getenv("VISUAL_CROSSING_API_KEY")
 MODEL_PATH           = os.getenv("MODEL_PATH", "models/delay_classifier.pkl")
 TOMTOM_API_KEY       = os.getenv("TOMTOM_API_KEY")
-# OSRM is used as the free routing API by default.
-USE_OSRM             = True
-
+GOOGLE_MAPS_API_KEY  = os.getenv("GOOGLE_MAPS_API_KEY")
 
 # ── Startup / shutdown lifecycle ──────────────────────────────────────────────
 
@@ -58,14 +56,13 @@ async def lifespan(app: FastAPI):
     try:
         _load_bundle(MODEL_PATH)
         G = get_graph()
+        
+        routing_api = "Google Maps API" if GOOGLE_MAPS_API_KEY else "OSRM Public API"
         info = graph_summary(G)
         model_name = get_model_name(MODEL_PATH)
         print(f"Model loaded   : {MODEL_PATH} ({model_name})")
         print(f"Graph ready    : {info['nodes']} hubs, {info['edges']} edges")
-        if USE_OSRM:
-            print(f"Routing API    : OSRM Public API (enabled)")
-        else:
-            print(f"Routing API    : disabled (using haversine fallback)")
+        print(f"Routing API    : {routing_api} (enabled)")
         print(f"Weather API    : {'✅ Visual Crossing (live)' if WEATHER_API_KEY else '⚠️ No key — simulated fallback'}")
         print(f"History DB     : data/history.db (active)")
     except Exception as e:

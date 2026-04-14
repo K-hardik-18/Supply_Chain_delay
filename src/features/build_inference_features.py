@@ -10,6 +10,7 @@ There is NO randomness here. Same inputs always produce the same features.
 """
 
 import math
+import os
 import pandas as pd
 from datetime import datetime
 
@@ -28,6 +29,7 @@ from src.simulator.weather import (
 )
 from src.simulator.shipments import encode_vehicle, encode_cargo
 from src.utils.traffic_api import get_traffic_delay, convert_traffic
+from src.utils.googlemaps_api import get_gmaps_route
 from src.utils.osrm_api import get_osrm_route
 
 
@@ -67,13 +69,24 @@ def build_feature_vector(
     src_hub = get_hub(source)
     dst_hub = get_hub(destination)
 
-    # ── Route features — OSRM with haversine fallback ─────────────────
+    # ── Route features — Google/OSRM with haversine fallback ─────────────────
     estimated_time_hr = None
     if use_osrm:
-        dist_km, dur_hr, _geom = get_osrm_route(
-            src_hub["lat"], src_hub["lon"],
-            dst_hub["lat"], dst_hub["lon"]
-        )
+        google_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+        dist_km, dur_hr, _geom = None, None, None
+        
+        if google_api_key:
+            dist_km, dur_hr, _geom = get_gmaps_route(
+                src_hub["lat"], src_hub["lon"],
+                dst_hub["lat"], dst_hub["lon"],
+                google_api_key
+            )
+        else:
+            dist_km, dur_hr, _geom = get_osrm_route(
+                src_hub["lat"], src_hub["lon"],
+                dst_hub["lat"], dst_hub["lon"]
+            )
+            
         if dist_km is not None:
             distance_km = dist_km
             estimated_time_hr = dur_hr
