@@ -55,7 +55,7 @@ def build_feature_vector(
     vehicle_type        : "bike" | "van" | "truck"
     cargo_type          : "standard" | "perishable" | "fragile"
     priority_level      : 1 | 2 | 3
-    weather_api_key     : optional OpenWeatherMap key; fallback to seasonal default
+    weather_api_key     : optional Visual Crossing key; fallback to seasonal default
     """
 
     # ── Cache check ──────────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ def build_feature_vector(
     wait = waiting_time_for(traffic_label)
 
     # ── Weather features — live API, else seasonal default ───────────────────
-    weather_live, temp_live = try_live_weather(src_hub["city"], weather_api_key)
+    weather_live, temp_live = try_live_weather(src_hub["city"], weather_api_key, departure_time)
 
     if weather_live is not None:
         weather      = weather_live

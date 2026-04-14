@@ -2,8 +2,8 @@
 weather.py  —  Weather simulation for training and inference fallback.
 
 During training: weather is sampled probabilistically by season.
-During inference: optionally fetched from live API; if unavailable,
-falls back to seasonal defaults. NEVER random — always deterministic fallback.
+During inference: fetched from Visual Crossing Weather API for the specific
+departure date/time; if unavailable, falls back to seasonal defaults.
 """
 
 import numpy as np
@@ -11,7 +11,7 @@ import numpy as np
 WEATHER_LEVELS   = ["clear", "rain", "fog", "storm"]
 WEATHER_CODE_MAP = {w: i for i, w in enumerate(WEATHER_LEVELS)}
 
-# 🌟 NEW: Cache to avoid repeated API calls
+# Cache to avoid repeated API calls — keyed by (city, date, hour)
 _weather_cache = {}
 
 # Seasonal weather profiles (North India)
@@ -59,17 +59,61 @@ def encode_weather(weather_level: str) -> int:
     return WEATHER_CODE_MAP[weather_level]
 
 
-def try_live_weather(city: str, api_key: str | None) -> tuple[str | None, float | None]:
+def _map_conditions(conditions: str) -> str:
     """
-    Attempt to fetch weather from OpenWeatherMap.
-    Uses caching to avoid repeated API calls.
-    Returns (None, None) on failure.
+    Map Visual Crossing 'conditions' string to our internal weather level.
+    Visual Crossing returns values like: 'Clear', 'Partially cloudy',
+    'Rain, Overcast', 'Thunderstorms', 'Fog', etc.
     """
+    c = conditions.lower()
 
-    # 🌟 NEW: Check cache first
-    if city in _weather_cache:
-        print(f"⚡ Using cached weather for: {city}")
-        return _weather_cache[city]
+    if "thunder" in c or "storm" in c:
+        return "storm"
+    elif "fog" in c or "mist" in c or "haze" in c:
+        return "fog"
+    elif "rain" in c or "drizzle" in c or "shower" in c:
+        return "rain"
+    else:
+        return "clear"
+
+
+def try_live_weather(
+    city: str,
+    api_key: str | None,
+    departure_time: str | None = None,
+) -> tuple[str | None, float | None]:
+    """
+    Fetch weather from Visual Crossing Weather API for a specific date and hour.
+
+    Parameters
+    ----------
+    city           : City name (e.g. "Delhi", "Jaipur")
+    api_key        : Visual Crossing API key
+    departure_time : ISO 8601 string (e.g. "2026-04-15T14:00:00")
+                     If provided, fetches weather for that specific date/hour.
+                     If None, fetches current conditions.
+
+    Returns (weather_level, temperature) or (None, None) on failure.
+    """
+    from datetime import datetime
+
+    # Parse the departure time for cache key and API query
+    target_date = None
+    target_hour = None
+    if departure_time:
+        try:
+            dt = datetime.fromisoformat(departure_time)
+            target_date = dt.strftime("%Y-%m-%d")
+            target_hour = dt.hour
+        except ValueError:
+            pass
+
+    # Build cache key using city + date + hour
+    cache_key = f"{city}|{target_date or 'now'}|{target_hour if target_hour is not None else 'now'}"
+
+    if cache_key in _weather_cache:
+        print(f"⚡ Using cached weather for: {city} ({target_date} {target_hour}:00)")
+        return _weather_cache[cache_key]
 
     if not api_key:
         if not hasattr(try_live_weather, '_warned'):
@@ -80,41 +124,75 @@ def try_live_weather(city: str, api_key: str | None) -> tuple[str | None, float 
     try:
         import requests
 
-        print(f"🌍 Fetching LIVE weather for: {city}")
+        # Build the Visual Crossing API URL
+        # If we have a date, query that specific date for hourly data
+        # Otherwise query current conditions
+        if target_date:
+            print(f"🌍 Fetching weather for: {city} on {target_date} at {target_hour}:00")
+            url = (
+                f"https://weather.visualcrossing.com/VisualCrossingWebServices"
+                f"/rest/services/timeline/{city}/{target_date}/{target_date}"
+                f"?unitGroup=metric&key={api_key}&contentType=json"
+                f"&include=hours"
+            )
+        else:
+            print(f"🌍 Fetching LIVE weather for: {city}")
+            url = (
+                f"https://weather.visualcrossing.com/VisualCrossingWebServices"
+                f"/rest/services/timeline/{city}"
+                f"?unitGroup=metric&key={api_key}&contentType=json"
+                f"&include=current"
+            )
 
-        url = (
-            f"https://api.openweathermap.org/data/2.5/weather"
-            f"?q={city}&appid={api_key}&units=metric"
-        )
+        r = requests.get(url, timeout=8)
+        r.raise_for_status()
+        data = r.json()
 
-        r = requests.get(url, timeout=3).json()
+        temp = None
+        conditions = None
 
-        # 🌟 NEW: Handle API errors properly
-        if "main" not in r or "weather" not in r:
-            print("❌ Invalid API response:", r)
+        if target_date and target_hour is not None:
+            # Extract the specific hour from the hourly data
+            days = data.get("days", [])
+            if days:
+                hours = days[0].get("hours", [])
+                # Find the matching hour
+                for h in hours:
+                    hour_str = h.get("datetime", "")  # e.g. "14:00:00"
+                    try:
+                        h_val = int(hour_str.split(":")[0])
+                        if h_val == target_hour:
+                            temp = float(h.get("temp", 0))
+                            conditions = h.get("conditions", "Clear")
+                            break
+                    except (ValueError, IndexError):
+                        continue
+
+                # Fallback to day-level data if hour not found
+                if temp is None:
+                    temp = float(days[0].get("temp", 0))
+                    conditions = days[0].get("conditions", "Clear")
+        else:
+            # Current conditions mode
+            current = data.get("currentConditions")
+            if current:
+                temp = float(current.get("temp", 0))
+                conditions = current.get("conditions", "Clear")
+
+        if temp is None or conditions is None:
+            print("❌ Could not extract weather from API response")
             return None, None
 
-        temp = float(r["main"]["temp"])
-        desc = r["weather"][0]["main"].lower()
-
-        if "storm" in desc or "thunder" in desc:
-            weather = "storm"
-        elif "fog" in desc or "mist" in desc or "haze" in desc:
-            weather = "fog"
-        elif "rain" in desc or "drizzle" in desc:
-            weather = "rain"
-        else:
-            weather = "clear"
-
+        weather = _map_conditions(conditions)
         result = (weather, round(temp, 1))
 
-        # 🌟 NEW: Save to cache
-        _weather_cache[city] = result
+        # Save to cache
+        _weather_cache[cache_key] = result
 
-        print(f"✅ LIVE WEATHER: {weather}, {temp}")
+        print(f"✅ WEATHER: {weather}, {temp}°C ({conditions})")
 
         return result
 
     except Exception as e:
-        print("❌ Weather API failed:", e)
+        print(f"❌ Weather API failed: {e}")
         return None, None

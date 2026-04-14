@@ -82,6 +82,8 @@ def optimize_fleet_route(
         raise ValueError("Maximum 6 destinations allowed for real-time fleet optimization.")
 
     # --- Decide which orderings to evaluate ---
+    orderings = []
+
     if len(destinations) <= 3:
         # ≤6 permutations — brute force is fast enough
         orderings = list(itertools.permutations(destinations))
@@ -89,6 +91,21 @@ def optimize_fleet_route(
         # Use nearest-neighbor heuristic + reverse (top 2 candidates)
         nn_order = _nearest_neighbor_order(source, destinations)
         orderings = [tuple(nn_order), tuple(reversed(nn_order))]
+
+    # --- Add hub-and-spoke orderings (return to source between stops) ---
+    # This relaxes strict TSP: sometimes backtracking through origin is faster
+    # than direct travel (e.g., origin = Delhi, destinations = Jaipur + Chennai;
+    # going Delhi→Jaipur→Delhi→Chennai may be faster than Delhi→Jaipur→Chennai).
+    nn_order = _nearest_neighbor_order(source, destinations)
+    spoke_sequence = []
+    for d in nn_order:
+        spoke_sequence.append(d)
+        spoke_sequence.append(source)  # return to source after each stop
+    spoke_sequence.pop()  # remove trailing source
+    orderings.append(tuple(spoke_sequence))
+
+    # Deduplicate orderings
+    orderings = list(set(orderings))
 
     # --- Pre-compute all unique legs in parallel ---
     unique_legs = set()

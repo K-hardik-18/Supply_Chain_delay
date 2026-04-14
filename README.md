@@ -22,7 +22,7 @@ SLI is an end-to-end logistics intelligence platform that predicts **shipment de
 - **Dual-Model ML Pipeline** — XGBoost Classifier (delay probability) + XGBoost Regressor (delay minutes)
 - **VRP Solver** — Traveling Salesperson Problem with parallelized scoring and nearest-neighbor heuristic
 - **4-Factor Route Scoring** — Balances distance, time, delay risk, and traffic conditions
-- **Real-Time APIs** — Live weather (OpenWeatherMap), traffic (TomTom), and road geometry (OSRM)
+- **Real-Time APIs** — Live weather (Visual Crossing), traffic (TomTom), and road geometry (OSRM)
 - **SHAP Explainability** — Game-theoretic explanations for every prediction
 - **Modern Web Dashboard** — Dark glassmorphism UI with interactive maps, gauges, and route visualization
 
@@ -78,7 +78,7 @@ SLI/
 │   │   ├── hubs.py                  # 40 Indian logistics hubs with GPS coordinates
 │   │   ├── network.py               # Builds fully-connected hub network (1560 edges)
 │   │   ├── traffic.py               # Traffic simulation (peak/off-peak/weekend patterns)
-│   │   ├── weather.py               # Weather fallback + OpenWeatherMap live API with caching
+│   │   ├── weather.py               # Weather fallback + Visual Crossing live API with caching
 │   │   └── shipments.py             # Vehicle/cargo type encoders
 │   │
 │   ├── db/
@@ -135,7 +135,7 @@ pip install -r requirements.txt
 Create a `.env` file in the project root:
 
 ```env
-OPENWEATHER_API_KEY=your_key_here     # Free at https://openweathermap.org/api
+VISUAL_CROSSING_API_KEY=your_key_here  # Free at https://www.visualcrossing.com/weather-api
 TOMTOM_API_KEY=your_key_here          # Free at https://developer.tomtom.com
 ```
 
@@ -310,7 +310,7 @@ After running `setup_and_run.py`, evaluation outputs are saved to `reports/`:
 | **Backend** | FastAPI, Pydantic, Uvicorn |
 | **Routing** | NetworkX, OSRM Public API |
 | **Frontend** | Vanilla HTML/CSS/JS, Leaflet.js |
-| **APIs** | OpenWeatherMap, TomTom Traffic |
+| **APIs** | Visual Crossing, TomTom Traffic |
 | **Data** | Pandas, NumPy, SQLite |
 
 ---
