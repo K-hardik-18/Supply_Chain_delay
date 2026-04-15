@@ -37,6 +37,8 @@ def get_gmaps_route(origin_lat: float, origin_lon: float, dest_lat: float, dest_
         origin = f"{origin_lat},{origin_lon}"
         destination = f"{dest_lat},{dest_lon}"
         
+        print(f"🗺️ [Google Maps API] Requesting directions: {origin} -> {destination}")
+        
         routes = gmaps.directions(origin, destination, mode="driving")
         
         if routes:

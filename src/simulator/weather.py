@@ -134,7 +134,7 @@ def try_live_weather(
 
         # Build the Visual Crossing API URL
         if target_date:
-            print(f"🌍 Fetching weather for: {city} on {target_date} at {target_hour}:00")
+            print(f"⛅ [Visual Crossing API] Fetching live/historic weather for: {city} on {target_date} at {target_hour}:00")
             url = (
                 f"https://weather.visualcrossing.com/VisualCrossingWebServices"
                 f"/rest/services/timeline/{city}/{target_date}/{target_date}"

@@ -13,7 +13,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Chart.js for analytics charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./style.css?v=4.2">
 </head>
 <body>
     <!-- Animated background -->
@@ -26,7 +26,7 @@
     <header class="header">
         <div class="header-content">
             <div class="logo">
-                <span class="logo-icon">🚚</span>
+                <span class="logo-icon"></span>
                 <div>
                     <h1 class="logo-text">Smart Logistics Intelligence</h1>
                     <p class="logo-sub">Multi-Model ML · 4-Factor Route Scoring · SHAP Explainability</p>
@@ -37,6 +37,7 @@
                 <nav class="tabs">
                     <button class="tab active" onclick="switchTab('analysis')" id="tabAnalysis">Analysis</button>
                     <button class="tab" onclick="switchTab('history')" id="tabHistory">Analytics</button>
+                    <button id="themeToggle" class="tab" style="font-size:1.1rem; padding: 4px 10px; margin-left: 8px;" title="Toggle Theme">☀️</button>
                 </nav>
                 <div class="header-status" id="headerStatus">
                     <span class="status-dot"></span>
@@ -244,10 +245,14 @@
     <!-- ═══════════════ ANALYTICS TAB ═══════════════ -->
     <main class="main-container history-container" id="historyTab" style="display:none;">
         <section class="panel history-panel glass-card" style="grid-column: 1 / -1;">
-            <h2 class="panel-title"><span class="panel-icon">📊</span> Analytics Dashboard</h2>
+            <h2 class="panel-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span><span class="panel-icon">📊</span> Analytics Dashboard</span>
+                <button onclick="resetAnalytics()" class="btn-primary" style="background:rgba(239, 68, 68, 0.2); color:#ef4444; border-color:rgba(239, 68, 68, 0.4); padding: 4px 10px; font-size: 0.8rem;">Reset Data</button>
+            </h2>
 
-            <!-- Analytics Cards -->
-            <div class="analytics-cards" id="analyticsCards">
+            <div id="analyticsContentWrapper">
+                <!-- Analytics Cards -->
+                <div class="analytics-cards" id="analyticsCards">
                 <div class="analytics-card glass-card">
                     <div class="analytics-value" id="totalPredictions">—</div>
                     <div class="analytics-label">Total Predictions</div>
@@ -293,6 +298,13 @@
                 <h3>📋 Recent Predictions</h3>
                 <div id="historyTable" class="history-table-container"></div>
             </div>
+            </div> <!-- End Wrapper -->
+
+            <div id="analyticsEmptyState" style="display:none; text-align:center; padding: 80px 20px; color: var(--text-muted);">
+                <span style="font-size:4rem; margin-bottom: 20px; display:block;">📉</span>
+                <h3 style="font-size: 1.5rem; color: var(--text-primary); margin-bottom: 12px;">No Analytics Data Available</h3>
+                <p>Execute an analysis on the main tab to populate your historical prediction charts and route metrics!</p>
+            </div>
         </section>
     </main>
 
@@ -301,6 +313,6 @@
         <p>Smart Logistics Intelligence v4.1 · Powered by XGBoost + Google Maps/Visual Crossing + 4-Factor VRP Scoring · SHAP Explainability</p>
     </footer>
 
-    <script src="./app.js"></script>
+    <script src="./app.js?v=4.2"></script>
 </body>
 </html>

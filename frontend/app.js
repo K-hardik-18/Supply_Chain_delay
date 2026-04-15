@@ -12,6 +12,7 @@ let locationState = {
 
 let leafletMap = null;
 let mapLayerGroup = null;
+let mapTileLayer = null;
 let radarChartInstance = null;
 let donutChartInstance = null;
 let lineChartInstance = null;
@@ -33,6 +34,28 @@ document.addEventListener("DOMContentLoaded", () => {
     checkHealth();
     updateHourBadge();
     document.getElementById("depHour").addEventListener("change", updateHourBadge);
+
+    const themeToggle = document.getElementById("themeToggle");
+    if (themeToggle) {
+        if (localStorage.getItem("theme") === "light") {
+            document.body.classList.add("light-mode");
+            themeToggle.textContent = "🌙";
+        }
+        themeToggle.addEventListener("click", () => {
+            document.body.classList.toggle("light-mode");
+            const isLight = document.body.classList.contains("light-mode");
+            if (isLight) {
+                localStorage.setItem("theme", "light");
+                themeToggle.textContent = "🌙";
+            } else {
+                localStorage.setItem("theme", "dark");
+                themeToggle.textContent = "☀️";
+            }
+            if (mapTileLayer) {
+                mapTileLayer.setUrl(`https://{s}.basemaps.cartocdn.com/${isLight ? 'light_all' : 'dark_all'}/{z}/{x}/{y}{r}.png`);
+            }
+        });
+    }
 });
 
 function initHourSelector() {
@@ -342,6 +365,8 @@ async function runAnalysis() {
         renderFleetRoute(fleetData);
         renderRadarChart(fleetData);
         renderMapAnimated(fleetData.best_plan, payload);
+        
+        setTimeout(() => loadAnalytics(), 500);
 
     } catch (e) {
         stopProgressSteps();
@@ -559,7 +584,8 @@ function renderRadarChart(fleetData) {
 function renderMapAnimated(plan, payload) {
     if (!leafletMap) {
         leafletMap = L.map("routeMap", { zoomControl: true, attributionControl: true }).setView([22.0, 79.0], 5);
-        L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        const isLight = document.body.classList.contains("light-mode");
+        mapTileLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${isLight ? 'light_all' : 'dark_all'}/{z}/{x}/{y}{r}.png`, {
             attribution: "© CARTO", maxZoom: 18
         }).addTo(leafletMap);
         mapLayerGroup = L.layerGroup().addTo(leafletMap);
@@ -661,6 +687,17 @@ function renderMapAnimated(plan, payload) {
 }
 
 // ── Analytics / History ──────────────────────────────────────────────────
+async function resetAnalytics() {
+    if (!confirm("Are you sure you want to permanently delete all prediction and route history?")) return;
+    try {
+        await fetch(`${API_BASE}/history`, { method: "DELETE" });
+        await loadAnalytics(); // Refresh the tab counters to zero
+        setTimeout(() => alert("Analytics database successfully reset!"), 100);
+    } catch (e) {
+        alert("Failed to reset history: " + e.message);
+    }
+}
+
 async function loadAnalytics() {
     try {
         const [analyticsRes, historyRes] = await Promise.all([
@@ -669,6 +706,15 @@ async function loadAnalytics() {
         ]);
         const analytics = await analyticsRes.json();
         const history = await historyRes.json();
+
+        if (!analytics || (analytics.total_predictions === 0 && analytics.total_routes === 0)) {
+            document.getElementById("analyticsContentWrapper").style.display = "none";
+            document.getElementById("analyticsEmptyState").style.display = "block";
+            return;
+        }
+
+        document.getElementById("analyticsContentWrapper").style.display = "block";
+        document.getElementById("analyticsEmptyState").style.display = "none";
 
         // Summary cards
         document.getElementById("totalPredictions").textContent = analytics.total_predictions ?? "—";

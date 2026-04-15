@@ -37,7 +37,7 @@ from src.routing.graph_builder import get_graph, graph_summary
 from src.routing.optimizer import find_best_route
 from src.pipeline.orchestrator import run_orchestrator
 from src.simulator.hubs import HUBS, CITY_NAMES
-from src.db.history import save_prediction, save_route, get_predictions, get_routes, get_analytics
+from src.db.history import save_prediction, save_route, get_predictions, get_routes, get_analytics, clear_history
 
 from dotenv import find_dotenv
 _project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -279,6 +279,52 @@ def predict_route_endpoint(req: FleetOptimizationRequest):
             weather_api_key     = WEATHER_API_KEY,
         )
 
+        try:
+            req_dict = req.model_dump()
+            req_dict["destination"] = " -> ".join(req.destinations)
+
+            best_plan = result.get("best_plan", {})
+            mock_best_route = {
+                "route": best_plan.get("visit_order", []),
+                "total_distance_km": best_plan.get("total_distance_km", 0),
+                "estimated_time_hr": best_plan.get("total_estimated_time_hr", 0),
+                "mean_delay_risk": 0.0,
+                "route_score": best_plan.get("total_score", 0),
+                "segments": [s for leg in best_plan.get("legs", []) for s in leg.get("segments", [])]
+            }
+
+            if mock_best_route["segments"]:
+                mock_best_route["mean_delay_risk"] = sum(s.get("delay_probability", 0) for s in mock_best_route["segments"]) / len(mock_best_route["segments"])
+
+            mock_response = {
+                "best_route": mock_best_route,
+                "summary": {"n_candidates": len(result.get("alternatives", [])) + 1}
+            }
+            save_route(request=req_dict, response=mock_response)
+
+            # Map segments into individual legacy predictions for Analytics graphs
+            for s in mock_best_route["segments"]:
+                p_req = {
+                    "source": s.get("from_hub", s.get("from", "Unknown")),
+                    "destination": s.get("to_hub", s.get("to", "Unknown")),
+                    "departure_time": req.departure_time,
+                    "vehicle_type": req.vehicle_type,
+                    "cargo_type": req.cargo_type,
+                    "priority_level": req.priority_level
+                }
+                delay_p = s.get("delay_probability", 0)
+                p_resp = {
+                    "delay_probability": delay_p,
+                    "delayed": 1 if delay_p > 0.5 else 0,
+                    "risk_level": s.get("risk_level", "low"),
+                    "top_factors": s.get("top_factors", []),
+                    "context": {}
+                }
+                save_prediction(request=p_req, response=p_resp, model_name="orchestrator")
+
+        except Exception as e:
+            print(f"[WARN] Fleet orchestrator history save failed: {e}")
+
         return FleetOptimizationResponse(**result)
         
     except ValueError as e:
@@ -315,3 +361,10 @@ def analytics_endpoint():
     - Recent predictions
     """
     return get_analytics()
+
+
+@app.delete("/history", tags=["History"])
+def reset_history():
+    """Wipe all historical records for testing or reset purposes."""
+    clear_history()
+    return {"message": "Success"}

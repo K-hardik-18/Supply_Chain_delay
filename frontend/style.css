@@ -35,6 +35,45 @@
     --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+body.light-mode {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #ffffff;
+    --bg-card: rgba(255, 255, 255, 0.95);
+    --bg-glass: rgba(0, 0, 0, 0.04);
+    --border-glass: rgba(0, 0, 0, 0.1);
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    --text-muted: #64748b;
+    --chart-grid: rgba(0, 0, 0, 0.1);
+}
+
+body.light-mode .bg-grid {
+    background-image:
+        linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px);
+}
+
+body.light-mode .form-input, body.light-mode .form-select {
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.15);
+}
+body.light-mode .form-input:focus, body.light-mode .form-select:focus {
+    background: #ffffff;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+body.light-mode .info-card {
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+body.light-mode .segment-card {
+    background: #ffffff;
+    border-color: rgba(0,0,0,0.08);
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
@@ -692,6 +731,11 @@ table.data-table td {
     padding: 6px 10px !important;
     border-radius: 8px !important;
     box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+}
+body.light-mode .map-tooltip {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(0,0,0,0.1) !important;
+    color: #0f172a !important;
 }
 .map-tooltip::before { display: none !important; }
 .leaflet-tooltip.map-tooltip { white-space: nowrap; }

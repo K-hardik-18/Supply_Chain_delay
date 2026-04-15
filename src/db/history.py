@@ -229,5 +229,14 @@ def get_analytics() -> dict:
     }
 
 
+def clear_history():
+    """Wipe all prediction and route history from the database."""
+    conn = _get_conn()
+    conn.execute("DELETE FROM predictions")
+    conn.execute("DELETE FROM route_optimizations")
+    conn.commit()
+    conn.close()
+
+
 # Initialize on import
 init_db()
