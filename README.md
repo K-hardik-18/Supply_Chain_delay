@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">🚚 Smart Logistics Intelligence (SLI)</h1>
+  <h1 align="center">Smart Logistics Intelligence (SLI)</h1>
   <p align="center">
     <strong>AI-Powered Supply Chain Delay Prediction & Multi-Stop Route Optimization</strong>
   </p>
