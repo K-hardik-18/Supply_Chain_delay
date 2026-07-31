@@ -81,7 +81,9 @@ def build_feature_vector(
                 dst_hub["lat"], dst_hub["lon"],
                 google_api_key
             )
-        else:
+
+        # Fallback to OSRM if Google Maps failed or key is missing
+        if dist_km is None:
             dist_km, dur_hr, _geom = get_osrm_route(
                 src_hub["lat"], src_hub["lon"],
                 dst_hub["lat"], dst_hub["lon"]
